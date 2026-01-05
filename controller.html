@@ -172,42 +172,51 @@
             if(currentPhase.team) document.getElementById(`p-${currentPhase.team}-${currentPhase.type}`).classList.add(currentPhase.type==='ban'?'active-ban':'active-pick');
         }
 
-        // --- Firebaseへの同期送信 ---
-        window.sync = function() {
-            const alphaName = document.getElementById('alpha-name').value;
-            const bravoName = document.getElementById('bravo-name').value;
-            
-            // 履歴用データの整理
-            const pickHistory = {};
-            slots.forEach((s, i) => {
-                if(s.pick) {
-                    // 直近のピックを現在のセット履歴として扱う（簡易ロジック）
-                    pickHistory[document.getElementById('set-val').value] = {
-                        name: stageList[i],
-                        img: imageFiles[i],
-                        pickedBy: currentPhase.team || 'alpha' 
-                    };
-                }
-            });
+    // --- Firebaseへの同期送信 ---
+    window.sync = function() {
+    const alphaName = document.getElementById('alpha-name').value;
+    const bravoName = document.getElementById('bravo-name').value;
+    const currentSet = document.getElementById('set-val').value;
+    
+    // 現在の入力状況から、現在のセットの情報を整理
+    const currentPick = slots.reduce((acc, s, i) => {
+        if (s.pick) {
+            acc = { name: stageList[i], img: imageFiles[i], pickedBy: currentPhase.team || 'alpha' };
+        }
+        return acc;
+    }, null);
 
-            const data = {
-                slotsStatus: slots, // overlay.htmlのBAN/PICK表示用
-                activePhase: currentPhase,
-                bo: document.getElementById('bo-val').value,
-                round: document.getElementById('round-val').value,
-                currentSetText: document.getElementById('set-val').value,
-                alphaName: alphaName || 'YELLOW TEAM',
-                alphaScore: document.getElementById('alpha-score').value,
-                alphaKana: teamMaster.find(t => t.name === alphaName)?.kana || '',
-                bravoName: bravoName || 'BLUE TEAM',
-                bravoScore: document.getElementById('bravo-score').value,
-                bravoKana: teamMaster.find(t => t.name === bravoName)?.kana || '',
-                // stagepick.html用の履歴データ
-                pickHistory: pickHistory 
-            };
-            
-            set(ref(db, 'match_state'), data);
-        };
+    // 既存のデータを一度参照して履歴を引き継ぐ、または新規作成
+    // (ここでは簡単のため、現在のパネルの状態を正として送信します)
+    const pickHistory = {}; 
+    // ※本来は全セット分保持すべきですが、まずは現在のセットを確実に送る形にします
+    if (currentPick) {
+        pickHistory[currentSet] = currentPick;
+    }
+
+    const data = {
+        slotsStatus: slots,
+        activePhase: currentPhase,
+        matchInfo: {
+            round: document.getElementById('round-val').value,
+            bo: document.getElementById('bo-val').value,
+            set: currentSet
+        },
+        alpha: {
+            name: alphaName || 'YELLOW TEAM',
+            score: document.getElementById('alpha-score').value,
+            kana: teamMaster.find(t => t.name === alphaName)?.kana || ''
+        },
+        bravo: {
+            name: bravoName || 'BLUE TEAM',
+            score: document.getElementById('bravo-score').value,
+            kana: teamMaster.find(t => t.name === bravoName)?.kana || ''
+        },
+        pickHistory: pickHistory 
+    };
+    
+    set(ref(db, 'match_state'), data);
+};
 
         render();
         // 初期状態を一度送信

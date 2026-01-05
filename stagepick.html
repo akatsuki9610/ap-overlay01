@@ -87,17 +87,20 @@
             if (!data) return;
 
             // ヘッダー更新
-            const alphaEl = document.getElementById('alpha-name-display');
-            alphaEl.textContent = data.alphaName || "TEAM A";
-            alphaEl.style.fontSize = getTeamFontSize(data.alphaName);
-            document.getElementById('alpha-score-display').textContent = data.alphaScore || 0;
+            const a = data.alpha || {};
+            const aDisplay = document.getElementById('alpha-name-display');
+            aDisplay.textContent = a.name || "TEAM A";
+            aDisplay.style.fontSize = getTeamFontSize(a.name);
+            document.getElementById('alpha-score-display').textContent = a.score || 0;
 
-            const bravoEl = document.getElementById('bravo-name-display');
-            bravoEl.textContent = data.bravoName || "TEAM B";
-            bravoEl.style.fontSize = getTeamFontSize(data.bravoName);
-            document.getElementById('bravo-score-display').textContent = data.bravoScore || 0;
+            const b = data.bravo || {};
+            const bDisplay = document.getElementById('bravo-name-display');
+            bDisplay.textContent = b.name || "TEAM B";
+            bDisplay.style.fontSize = getTeamFontSize(b.name);
+            document.getElementById('bravo-score-display').textContent = b.score || 0;
 
-            renderHistory(data.bo, data.pickHistory || {});
+            // 履歴描画
+            renderHistory(data.matchInfo?.bo || "BO3", data.pickHistory || {});
         });
 
         function renderHistory(boType, pickHistory) {

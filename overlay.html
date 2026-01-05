@@ -115,36 +115,41 @@
 
         // Firebaseからリアルタイム受信
         const matchRef = ref(db, 'match_state');
-        onValue(matchRef, (snapshot) => {
-            const data = snapshot.val();
-            if (!data) return;
+    onValue(matchRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
 
-            // 試合情報更新
-            document.getElementById('info-bo').textContent = data.bo || "BO3";
-            document.getElementById('info-set').textContent = data.currentSetText || "第1セット";
+        // 試合情報更新
+        document.getElementById('info-round').textContent = data.matchInfo?.round || "本戦";
+        document.getElementById('info-bo').textContent = data.matchInfo?.bo || "BO3";
+        document.getElementById('info-set').textContent = data.matchInfo?.set || "第1セット";
 
-            // チーム情報更新
-            const alphaName = data.alphaName || 'YELLOW TEAM';
-            const aEl = document.getElementById('alpha-name');
-            aEl.textContent = alphaName; aEl.style.fontSize = getTeamFontSize(alphaName);
-            document.getElementById('alpha-score').textContent = data.alphaScore || 0;
-            document.getElementById('alpha-kana').textContent = data.alphaKana || '';
+        // チーム情報更新 (alpha)
+        const a = data.alpha || {};
+        const aEl = document.getElementById('alpha-name');
+        aEl.textContent = a.name; 
+        aEl.style.fontSize = getTeamFontSize(a.name);
+        document.getElementById('alpha-score').textContent = a.score || 0;
+        document.getElementById('alpha-kana').textContent = a.kana || '';
 
-            const bravoName = data.bravoName || 'BLUE TEAM';
-            const bEl = document.getElementById('bravo-name');
-            bEl.textContent = bravoName; bEl.style.fontSize = getTeamFontSize(bravoName);
-            document.getElementById('bravo-score').textContent = data.bravoScore || 0;
-            document.getElementById('bravo-kana').textContent = data.bravoKana || '';
+        // チーム情報更新 (bravo)
+        const b = data.bravo || {};
+        const bEl = document.getElementById('bravo-name');
+        bEl.textContent = b.name; 
+        bEl.style.fontSize = getTeamFontSize(b.name);
+        document.getElementById('bravo-score').textContent = b.score || 0;
+        document.getElementById('bravo-kana').textContent = b.kana || '';
 
-            // スロットの状態更新（BAN/PICK）
-            // data.slotsStatus = [ {ban: false, pick: true}, ... ] のような形式を想定
-            if(data.slotsStatus) {
-                data.slotsStatus.forEach((s, i) => {
-                    const el = document.getElementById(`slot-${i}`);
-                    if (el) { el.classList.toggle('is-ban', !!s.ban); el.classList.toggle('is-pick', !!s.pick); }
-                });
-            }
-
+        // BAN/PICKスロット更新
+        if (data.slotsStatus) {
+            data.slotsStatus.forEach((s, i) => {
+                const el = document.getElementById(`slot-${i}`);
+                if (el) {
+                    el.classList.toggle('is-ban', !!s.ban);
+                    el.classList.toggle('is-pick', !!s.pick);
+                }
+            });
+        }
             // フェーズ表示の更新
             const alphaHeader = document.getElementById('display-alpha');
             const bravoHeader = document.getElementById('display-bravo');
