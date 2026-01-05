@@ -2,35 +2,92 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OBS Controller</title>
+    <title>OVERLAY CONTROLLER (Firebase Ver.)</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #eee; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input, select, button { width: 100%; padding: 10px; margin: 10px 0; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
-        button { background: #3D3EB0; color: white; border: none; font-weight: bold; cursor: pointer; }
-        .set-row { display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        /* CSSは元のコントローラーのものを完全に維持しています */
+        body { background: #1a1a1a; color: white; font-family: sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .control-panel { background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; margin-bottom: 20px; width: 800px; }
+        .section-title { font-size: 12px; color: #888; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; }
+        .team-selection { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .team-block { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+        .no-select { width: 60px; }
+        .name-select { flex: 1; }
+        .score-select { width: 50px; font-size: 20px; font-weight: bold; text-align: center; }
+        .vs-text { font-size: 24px; font-weight: bold; color: #888; }
+        .phase-controls { display: flex; gap: 30px; justify-content: center; }
+        .phase-group { display: flex; flex-direction: column; gap: 8px; text-align: center; }
+        .phase-btn { width: 130px; padding: 10px; cursor: pointer; border: none; border-radius: 4px; background: #444; color: #ccc; font-weight: bold; }
+        .phase-btn.active-ban { background: #ff3333 !important; color: white; box-shadow: 0 0 10px #ff3333; }
+        .phase-btn.active-pick { background: #ffba39 !important; color: black; box-shadow: 0 0 10px #ffba39; }
+        .row { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; }
+        .card { background: #333; padding: 15px; border-radius: 8px; border: 1px solid #444; width: 150px; text-align: center; }
+        button { width: 100%; padding: 12px 0; margin: 5px 0; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-ban.active { background: #ff3333; color: white; }
+        .btn-pick.active { background: #ff8c00; color: white; }
+        .import-area { font-size: 10px; color: #666; text-align: right; }
+        textarea { width: 100%; height: 60px; background: #111; color: #0f0; border: 1px solid #333; margin-top: 5px; font-family: monospace; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h3>基本情報</h3>
-        <input type="text" id="alphaName" placeholder="YELLOW TEAM 名">
-        <input type="number" id="alphaScore" value="0">
-        <input type="text" id="bravoName" placeholder="BLUE TEAM 名">
-        <input type="number" id="bravoScore" value="0">
-        <select id="boType"><option value="BO3">BO3</option><option value="BO5">BO5</option></select>
+
+    <div class="control-panel">
+        <div class="section-title">MATCH INFO</div>
+        <div style="display:flex; gap:15px; align-items:center; justify-content: center;">
+            ラウンド: <select id="round-val" onchange="sync()"><option>一回戦</option><option>二回戦</option><option>準決勝</option><option>決勝</option></select>
+            形式: <select id="bo-val" onchange="sync()"><option value="BO3">BO3</option><option value="BO5">BO5</option></select>
+            現在のセット: <select id="set-val" onchange="sync()"><option value="第1セット">1</option><option value="第2セット">2</option><option value="第3セット">3</option><option value="第4セット">4</option><option value="第5セット">5</option></select>
+        </div>
     </div>
 
-    <div class="card" id="sets-container">
-        <h3>ステージピック</h3>
+    <div class="control-panel">
+        <div class="section-title">TEAM SELECTION & SCORE</div>
+        <div class="team-selection">
+            <div class="team-block">
+                <div style="display:flex; gap:5px;">
+                    <select id="alpha-no" class="no-select" onchange="onTeamNoChange('alpha')"><option value="">No.</option></select>
+                    <select id="alpha-name" class="name-select" onchange="onTeamNameChange('alpha')"><option value="">チーム名を選択</option></select>
+                </div>
+            </div>
+            <select id="alpha-score" class="score-select" onchange="sync()"><option>0</option><option>1</option><option>2</option><option>3</option></select>
+            <div class="vs-text">VS</div>
+            <select id="bravo-score" class="score-select" onchange="sync()"><option>0</option><option>1</option><option>2</option><option>3</option></select>
+            <div class="team-block">
+                <div style="display:flex; gap:5px;">
+                    <select id="bravo-name" class="name-select" onchange="onTeamNameChange('bravo')"><option value="">チーム名を選択</option></select>
+                    <select id="bravo-no" class="no-select" onchange="onTeamNoChange('bravo')"><option value="">No.</option></select>
+                </div>
+            </div>
         </div>
+    </div>
 
-    <button onclick="updateFirebase()">OBSを更新する</button>
+    <div class="control-panel">
+        <div class="section-title">BAN / PICK PHASE</div>
+        <div class="phase-controls">
+            <div class="phase-group">
+                <button id="p-alpha-ban" class="phase-btn" onclick="setPhase('alpha', 'ban')">ALPHA BAN</button>
+                <button id="p-alpha-pick" class="phase-btn" onclick="setPhase('alpha', 'pick')">ALPHA PICK</button>
+            </div>
+            <button class="phase-btn" onclick="setPhase('', '')" style="align-self: flex-end;">解除</button>
+            <div class="phase-group">
+                <button id="p-bravo-ban" class="phase-btn" onclick="setPhase('bravo', 'ban')">BRAVO BAN</button>
+                <button id="p-bravo-pick" class="phase-btn" onclick="setPhase('bravo', 'pick')">BRAVO PICK</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" id="controls-top"></div>
+    <div class="row" id="controls-bottom"></div>
+
+    <div class="control-panel import-area">
+        <span>スプレッドシートの A(No) B(名) C(カナ) 列をコピーして下に貼り付け</span>
+        <textarea id="csv-import" placeholder="1	TeamAlpha	チームアルファ" oninput="importTeams()"></textarea>
+        <button onclick="resetSelection()" style="width: auto; padding: 5px 15px; background: #444; color: #fff;">選択リセット</button>
+    </div>
 
     <script type="module">
+        // Firebase設定
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDnNBvjjgg24swnbnchts8imAFckbBtQbE",
@@ -43,44 +100,118 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const stages = ["ユノハナ大渓谷", "海女美術大学", "クサヤ温泉", "タラポートショッピングパーク", "コンブトラック", "ネギトロ炭鉱", "リュウグウターミナル"];
+
+        // --- 内部ロジック（元の controller.html から継承） ---
+        let slots = Array.from({length: 7}, () => ({ ban: false, pick: false }));
+        let currentPhase = { team: '', type: '' };
+        let teamMaster = [];
+        const stageList = ["ユノハナ大渓谷", "海女美術大学", "クサヤ温泉", "タラポートショッピングパーク", "コンブトラック", "ネギトロ炭鉱", "リュウグウターミナル"];
         const imageFiles = ["01_ユノハナ大渓谷.png", "09_海女美術大学.png", "13_クサヤ温泉.png", "17_タラポートショッピングパーク.png", "18_コンブトラック.png", "22_ネギトロ炭鉱.png", "24_リュウグウターミナル.png"];
 
-        // 入力欄の生成
-        const container = document.getElementById('sets-container');
-        for(let i=1; i<=5; i++) {
-            const row = document.createElement('div');
-            row.className = 'set-row';
-            row.innerHTML = `
-                <span>第${i}</span>
-                <select id="stage-${i}"><option value="">未確定</option>${stages.map((s, idx) => `<option value="${idx}">${s}</option>`).join('')}</select>
-                <select id="winner-${i}"><option value="alpha">YELLOW</option><option value="bravo">BLUE</option></select>
-            `;
-            container.appendChild(row);
+        window.importTeams = function() {
+            const text = document.getElementById('csv-import').value;
+            const lines = text.trim().split('\n');
+            teamMaster = lines.map(line => {
+                const cols = line.split('\t');
+                return { no: cols[0], name: cols[1], kana: cols[2] || '' };
+            });
+            ['alpha', 'bravo'].forEach(t => {
+                const noSel = document.getElementById(`${t}-no`);
+                const nameSel = document.getElementById(`${t}-name`);
+                noSel.innerHTML = '<option value="">No.</option>';
+                nameSel.innerHTML = '<option value="">チーム名を選択</option>';
+                teamMaster.forEach(team => {
+                    noSel.innerHTML += `<option value="${team.no}">${team.no}</option>`;
+                    nameSel.innerHTML += `<option value="${team.name}">${team.name}</option>`;
+                });
+            });
+        };
+
+        window.onTeamNoChange = function(team) {
+            const no = document.getElementById(`${team}-no`).value;
+            const match = teamMaster.find(t => t.no === no);
+            if(match) { document.getElementById(`${team}-name`).value = match.name; sync(); }
+        };
+
+        window.onTeamNameChange = function(team) {
+            const name = document.getElementById(`${team}-name`).value;
+            const match = teamMaster.find(t => t.name === name);
+            if(match) { document.getElementById(`${team}-no`).value = match.no; sync(); }
+        };
+
+        window.resetSelection = function() {
+            slots = slots.map(() => ({ ban: false, pick: false }));
+            currentPhase = { team: '', type: '' };
+            render(); sync();
+        };
+
+        window.setPhase = function(team, type) { currentPhase = { team, type }; render(); sync(); };
+
+        window.toggle = function(i, type) {
+            if (!currentPhase.team || type !== currentPhase.type) return;
+            slots[i][type] = !slots[i][type];
+            if(type === 'ban' && slots[i].ban) slots[i].pick = false;
+            if(type === 'pick' && slots[i].pick) slots[i].ban = false;
+            render(); sync();
+        };
+
+        function render() {
+            const rowTop = document.getElementById('controls-top'), rowBottom = document.getElementById('controls-bottom');
+            rowTop.innerHTML = ''; rowBottom.innerHTML = '';
+            slots.forEach((s, i) => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                const banD = !currentPhase.team || currentPhase.type !== 'ban';
+                const pickD = !currentPhase.team || currentPhase.type !== 'pick';
+                div.innerHTML = `<h3>${stageList[i]}</h3>
+                    <button class="btn-ban ${s.ban ? 'active' : ''}" style="opacity:${banD?0.3:1}" onclick="toggle(${i}, 'ban')">BAN</button>
+                    <button class="btn-pick ${s.pick ? 'active' : ''}" style="opacity:${pickD?0.3:1}" onclick="toggle(${i}, 'pick')">PICK</button>`;
+                if (i < 4) rowTop.appendChild(div); else rowBottom.appendChild(div);
+            });
+            document.querySelectorAll('.phase-btn').forEach(b => b.classList.remove('active-ban', 'active-pick'));
+            if(currentPhase.team) document.getElementById(`p-${currentPhase.team}-${currentPhase.type}`).classList.add(currentPhase.type==='ban'?'active-ban':'active-pick');
         }
 
-        window.updateFirebase = function() {
+        // --- Firebaseへの同期送信 ---
+        window.sync = function() {
+            const alphaName = document.getElementById('alpha-name').value;
+            const bravoName = document.getElementById('bravo-name').value;
+            
+            // 履歴用データの整理
             const pickHistory = {};
-            for(let i=1; i<=5; i++) {
-                const stageIdx = document.getElementById(`stage-${i}`).value;
-                if(stageIdx !== "") {
-                    pickHistory[`第${i}セット`] = {
-                        name: stages[stageIdx],
-                        img: imageFiles[stageIdx],
-                        pickedBy: document.getElementById(`winner-${i}`).value
+            slots.forEach((s, i) => {
+                if(s.pick) {
+                    // 直近のピックを現在のセット履歴として扱う（簡易ロジック）
+                    pickHistory[document.getElementById('set-val').value] = {
+                        name: stageList[i],
+                        img: imageFiles[i],
+                        pickedBy: currentPhase.team || 'alpha' 
                     };
                 }
-            }
+            });
 
-            set(ref(db, 'match_state'), {
-                alphaName: document.getElementById('alphaName').value,
-                alphaScore: document.getElementById('alphaScore').value,
-                bravoName: document.getElementById('bravoName').value,
-                bravoScore: document.getElementById('bravoScore').value,
-                bo: document.getElementById('boType').value,
-                pickHistory: pickHistory
-            }).then(() => alert("更新完了！"));
+            const data = {
+                slotsStatus: slots, // overlay.htmlのBAN/PICK表示用
+                activePhase: currentPhase,
+                bo: document.getElementById('bo-val').value,
+                round: document.getElementById('round-val').value,
+                currentSetText: document.getElementById('set-val').value,
+                alphaName: alphaName || 'YELLOW TEAM',
+                alphaScore: document.getElementById('alpha-score').value,
+                alphaKana: teamMaster.find(t => t.name === alphaName)?.kana || '',
+                bravoName: bravoName || 'BLUE TEAM',
+                bravoScore: document.getElementById('bravo-score').value,
+                bravoKana: teamMaster.find(t => t.name === bravoName)?.kana || '',
+                // stagepick.html用の履歴データ
+                pickHistory: pickHistory 
+            };
+            
+            set(ref(db, 'match_state'), data);
         };
+
+        render();
+        // 初期状態を一度送信
+        window.sync = sync; 
     </script>
 </body>
 </html>
