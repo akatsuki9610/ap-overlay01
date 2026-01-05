@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Controller</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #eee; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input, select, button { width: 100%; padding: 10px; margin: 10px 0; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
+        button { background: #3D3EB0; color: white; border: none; font-weight: bold; cursor: pointer; }
+        .set-row { display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h3>基本情報</h3>
+        <input type="text" id="alphaName" placeholder="YELLOW TEAM 名">
+        <input type="number" id="alphaScore" value="0">
+        <input type="text" id="bravoName" placeholder="BLUE TEAM 名">
+        <input type="number" id="bravoScore" value="0">
+        <select id="boType"><option value="BO3">BO3</option><option value="BO5">BO5</option></select>
+    </div>
+
+    <div class="card" id="sets-container">
+        <h3>ステージピック</h3>
+        </div>
+
+    <button onclick="updateFirebase()">OBSを更新する</button>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDnNBvjjgg24swnbnchts8imAFckbBtQbE",
+            authDomain: "ap-eventtool.firebaseapp.com",
+            projectId: "ap-eventtool",
+            storageBucket: "ap-eventtool.firebasestorage.app",
+            messagingSenderId: "1054354601976",
+            appId: "1:1054354601976:web:d660ed86e2a91415acc80d"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const stages = ["ユノハナ大渓谷", "海女美術大学", "クサヤ温泉", "タラポートショッピングパーク", "コンブトラック", "ネギトロ炭鉱", "リュウグウターミナル"];
+        const imageFiles = ["01_ユノハナ大渓谷.png", "09_海女美術大学.png", "13_クサヤ温泉.png", "17_タラポートショッピングパーク.png", "18_コンブトラック.png", "22_ネギトロ炭鉱.png", "24_リュウグウターミナル.png"];
+
+        // 入力欄の生成
+        const container = document.getElementById('sets-container');
+        for(let i=1; i<=5; i++) {
+            const row = document.createElement('div');
+            row.className = 'set-row';
+            row.innerHTML = `
+                <span>第${i}</span>
+                <select id="stage-${i}"><option value="">未確定</option>${stages.map((s, idx) => `<option value="${idx}">${s}</option>`).join('')}</select>
+                <select id="winner-${i}"><option value="alpha">YELLOW</option><option value="bravo">BLUE</option></select>
+            `;
+            container.appendChild(row);
+        }
+
+        window.updateFirebase = function() {
+            const pickHistory = {};
+            for(let i=1; i<=5; i++) {
+                const stageIdx = document.getElementById(`stage-${i}`).value;
+                if(stageIdx !== "") {
+                    pickHistory[`第${i}セット`] = {
+                        name: stages[stageIdx],
+                        img: imageFiles[stageIdx],
+                        pickedBy: document.getElementById(`winner-${i}`).value
+                    };
+                }
+            }
+
+            set(ref(db, 'match_state'), {
+                alphaName: document.getElementById('alphaName').value,
+                alphaScore: document.getElementById('alphaScore').value,
+                bravoName: document.getElementById('bravoName').value,
+                bravoScore: document.getElementById('bravoScore').value,
+                bo: document.getElementById('boType').value,
+                pickHistory: pickHistory
+            }).then(() => alert("更新完了！"));
+        };
+    </script>
+</body>
+</html>
