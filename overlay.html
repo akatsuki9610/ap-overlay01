@@ -122,7 +122,7 @@
         if (!data) return;
 
         // 試合情報更新
-        document.getElementById('info-round').textContent = data.matchInfo?.round || "一回戦";
+        document.getElementById('info-round').textContent = data.matchInfo?.round || "本戦";
         document.getElementById('info-bo').textContent = data.matchInfo?.bo || "BO3";
         document.getElementById('info-set').textContent = data.matchInfo?.set || "第1セット";
 
@@ -162,7 +162,7 @@
             const bLabel = bravoHeader.querySelector('.phase-label');
             aLabel.textContent = 'WAITING'; bLabel.textContent = 'WAITING';
 
-            if (data.activePhase) { // { team: 'alpha', type: 'pick' }
+            if (data.activePhase && data.activePhase.team) { // teamが空でない場合のみ実行
                 const target = data.activePhase.team === 'alpha' ? alphaHeader : bravoHeader;
                 const label = data.activePhase.team === 'alpha' ? aLabel : bLabel;
                 target.classList.add(data.activePhase.type === 'ban' ? 'active-ban' : 'active-pick');
@@ -173,7 +173,3 @@
 </body>
 
 </html>
-
-
-
-
