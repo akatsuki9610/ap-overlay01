@@ -46,7 +46,7 @@
         <div style="display:flex; gap:15px; align-items:center; justify-content: center;">
             ラウンド: <select id="round-val" onchange="window.resetSelection()"><option>一回戦</option><option>二回戦</option><option>準決勝</option><option>決勝</option></select>
             形式: <select id="bo-val" onchange="window.resetSelection()"><option value="BO3">BO3</option><option value="BO5">BO5</option></select>
-            現在のセット: <select id="set-val" onchange="window.resetSelection()"><option value="第1セット">1</option><option value="第2セット">2</option><option value="第3セット">3</option><option value="第4セット">4</option><option value="第5セット">5</option></select>
+            現在のセット: <select id="set-val" onchange="window.resetTogglesOnly()"><option value="第1セット">1</option><option value="第2セット">2</option><option value="第3セット">3</option><option value="第4セット">4</option><option value="第5セット">5</option></select>
         </div>
     </div>
 
@@ -180,6 +180,99 @@
             currentPhase = { team: '', type: '' };
             render(); window.sync();
         };
+
+// 現在のresetSelection関数を残しつつ、新しい関数を追加
+window.resetTogglesOnly = function() {
+    // トグル状態とフェーズだけリセット
+    slots = slots.map(() => ({ ban: false, pick: false }));
+    currentPhase = { team: '', type: '' };
+    render();
+    // syncは呼ぶが、pickHistoryは保持したままFirebaseを更新
+    syncWithHistoryPreserved();
+};
+
+// 履歴を保持したままsyncする新関数
+function syncWithHistoryPreserved() {
+    const alphaName = document.getElementById('alpha-name').value;
+    const bravoName = document.getElementById('bravo-name').value;
+    const currentSet = document.getElementById('set-val').value;
+    
+    // まず現在のFirebaseデータを取得して履歴を保持
+    const matchRef = ref(db, 'match_state');
+    onValue(matchRef, (snapshot) => {
+        const existingData = snapshot.val();
+        const preservedHistory = existingData?.pickHistory || {};
+        
+        const data = {
+            slotsStatus: slots, 
+            activePhase: currentPhase,
+            matchInfo: { 
+                round: document.getElementById('round-val').value, 
+                bo: document.getElementById('bo-val').value, 
+                set: currentSet 
+            },
+            alpha: { 
+                name: alphaName || 'YELLOW TEAM', 
+                score: document.getElementById('alpha-score').value, 
+                kana: teamMaster.find(t => t.name === alphaName)?.kana || '' 
+            },
+            bravo: { 
+                name: bravoName || 'BLUE TEAM', 
+                score: document.getElementById('bravo-score').value, 
+                kana: teamMaster.find(t => t.name === bravoName)?.kana || '' 
+            },
+            pickHistory: preservedHistory // 既存の履歴を保持
+        };
+        set(matchRef, data);
+    }, { onlyOnce: true }); // 一度だけ取得
+}
+
+    // 既存のsync関数も少し修正して、pickHistoryを適切に扱う
+    window.sync = function() {
+        const alphaName = document.getElementById('alpha-name').value;
+        const bravoName = document.getElementById('bravo-name').value;
+        const currentSet = document.getElementById('set-val').value;
+        
+        // 現在ピックされているステージを取得
+        const currentPick = slots.reduce((acc, s, i) => {
+            if (s.pick) acc = { name: stageList[i], img: imageFiles[i], pickedBy: currentPhase.team || 'alpha' };
+            return acc;
+        }, null);
+        
+        // 既存データを取得して履歴をマージ
+        const matchRef = ref(db, 'match_state');
+        onValue(matchRef, (snapshot) => {
+            const existingData = snapshot.val();
+            const pickHistory = existingData?.pickHistory || {};
+            
+            // 現在のセットにピックがあれば更新
+            if (currentPick) {
+                pickHistory[currentSet] = currentPick;
+            }
+            
+            const data = {
+                slotsStatus: slots, 
+                activePhase: currentPhase,
+                matchInfo: { 
+                    round: document.getElementById('round-val').value, 
+                    bo: document.getElementById('bo-val').value, 
+                    set: currentSet 
+                },
+                alpha: { 
+                    name: alphaName || 'YELLOW TEAM', 
+                    score: document.getElementById('alpha-score').value, 
+                    kana: teamMaster.find(t => t.name === alphaName)?.kana || '' 
+                },
+                bravo: { 
+                    name: bravoName || 'BLUE TEAM', 
+                    score: document.getElementById('bravo-score').value, 
+                    kana: teamMaster.find(t => t.name === bravoName)?.kana || '' 
+                },
+                pickHistory: pickHistory
+            };
+            set(matchRef, data);
+        }, { onlyOnce: true });
+    };
 
         window.setPhase = function(team, type) { currentPhase = { team, type }; render(); window.sync(); };
 
