@@ -29,6 +29,11 @@
     </style>
 </head>
 <body>
+    <div id="lock-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center; flex-direction:column;">
+        <h1 style="color:white;">他のスタッフが操作中です</h1>
+        <p style="color:#ccc;">二重操作を防ぐため、この画面はロックされています。</p>
+        <button onclick="location.reload()" style="width:auto; padding:10px 20px;">再読み込みして確認</button>
+    </div>
 
     <div class="control-panel">
         <div class="section-title">MATCH INFO</div>
@@ -86,7 +91,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, set, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyDnNBvjjgg24swnbnchts8imAFckbBtQbE",
@@ -99,7 +104,36 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    const lockRef = ref(db, 'is_locked');
+    let myLock = false; // 自分がロックを持っているか
+
+    // 1. ロック状態を監視
+    onValue(lockRef, (snapshot) => {
+        const locked = snapshot.val();
+        const overlay = document.getElementById('lock-overlay'); // ロック中表示用
+
+        if (locked && !myLock) {
+            // 他の人が操作中の場合
+            overlay.style.display = 'flex';
+            console.log("他のユーザーが操作パネルを使用中です。");
+        } else if (!locked) {
+            // 誰もおらず、自分がこれから使う場合
+            takeLock();
+        }
+    });
+
+    // 2. ロックを取得する関数
+    function takeLock() {
+        myLock = true;
+        set(lockRef, true);
+        // 自分がブラウザを閉じたら、自動でロックを解除する設定
+        onDisconnect(lockRef).set(false);
+    }
+
+    // 3. ページを離れる時に明示的に解除
+    window.addEventListener('beforeunload', () => {
+        if (myLock) set(lockRef, false);
+    });
 
     let slots = Array.from({length: 7}, () => ({ ban: false, pick: false }));
     let currentPhase = { team: '', type: '' };
@@ -224,6 +258,15 @@
 
     render();
     window.sync(); // 初回実行
+    
+    // 強制解除ボタン用の関数
+    window.forceUnlock = function() {
+        if(confirm("本当に強制解除しますか？")){
+            set(lockRef, false);
+            location.reload();
+        }
+    };
+
 </script>
 </body>
 
